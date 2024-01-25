@@ -41,6 +41,9 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents(guilds=True,guild_messages=True, message_content=True, guild_reactions=True)
 bot = commands.Bot(intents = intents, command_prefix='!', status='idle')
 
+BACKWARDS_SPIRAL = '\U0001F504'
+SLEEPING_FACE = '\U0001F634'
+CHECK_MARK = '\U00002705'
 VALID_GAME_TYPES = ['minecraft', 'palworld']
 
 def get_ip():
@@ -62,13 +65,13 @@ async def show_online_players(ctx):
 @bot.command(name='start', aliases=['wake', 'begin', 'turnon', 'on', 'arouse'])
 async def start_server(ctx, game_type):
     """Wakes remote and launches minecraft server"""
-    await bot.change_presence(status='online', activity=discord.Game(name=f'Minecraft on {get_ip()}'))
-    await ctx.message.add_reaction('\U0001F504')
+    await ctx.message.add_reaction(BACKWARDS_SPIRAL)
     assert game_type in VALID_GAME_TYPES, f'Valid game types are: {VALID_GAME_TYPES}'
     shell().start_server(game_type)
     if shell().is_server_online():
         await ctx.send('Online @'+ get_ip())
-    await ctx.message.add_reaction('\U00002705')
+    await bot.change_presence(status='online', activity=discord.Game(name=f'{game_type} on {get_ip()}'))
+    await ctx.message.add_reaction(CHECK_MARK)
 
 @commands.cooldown(1, 20, commands.BucketType.default)
 @bot.command(name='sleep', aliases=['stop', 'quit', 'shutdown', 'off']) 
@@ -77,11 +80,11 @@ async def sleep_remote(ctx):
     if not shell().is_server_online():
         await ctx.send('Server already sleeping!')  
     else:
-        await ctx.message.add_reaction('\U0001F504')
-        await ctx.message.add_reaction('\U0001F634')
+        await ctx.message.add_reaction(BACKWARDS_SPIRAL)
+        await ctx.message.add_reaction(SLEEPING_FACE)
         await bot.change_presence(status='idle', activity=None)
         shell().stop_server()
-    await ctx.message.add_reaction('\U00002705')
+    await ctx.message.add_reaction(CHECK_MARK)
 
 
 bot.run(TOKEN)

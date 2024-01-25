@@ -18,24 +18,30 @@ class shell(object):
             self.instance = super(shell, self).__new__(self)
             load_dotenv()
             self.SERVER_PC_MAC = os.getenv('SERVER_MAC')
-            self.SERVER_USER = os.getenv('SERVER_USER')
-            self.SERVER_PW = os.getenv('SERVER_USER_PASSWORD')
             self.SERVER_IP = os.getenv('SERVER_IP')
-            self.RCON_PW = os.getenv('MC_RCON_PASSWORD')
+            self.current_game_type = None
             self.connection = None
-            self.mcIn = None
-            self.mcOut = None
-            self.mcErr = None
+            self.stdIn = None
+            self.stdOut = None
+            self.stdErr = None
         return self.instance
 
-    def establish_connection(self):
+    def establish_connection(self, command_user):
         # If the server is not online, turn it on
         if not self.is_server_online():
             self.wake_remote_server()
         self.connection = pm.client.SSHClient()
         self.connection.set_missing_host_key_policy(pm.client.WarningPolicy())
         log.info('Establishing connection to remote')
-        self.connection.connect(self.SERVER_IP, username=self.SERVER_USER, password=self.SERVER_PW)
+        if command_user == 'mc_user':
+            username = os.getenv('MC_USER')
+            password = os.getenv('MC_USER_PASSWORD')
+        elif command_user == 'steam':
+            username = os.getenv('STEAM_SERVER_USER')
+            password = os.getenv('STEAM_SERVER_USER_PASSWORD')
+        else:
+            assert 'Invalid user passed, cannot continue'
+        self.connection.connect(self.SERVER_IP, username=username, password=password)
         stdin, stdout, stderr = self.connection.exec_command('whoami')
         log.info(f'Logged into remote ({self.SERVER_IP}) as {{{stdout.read().decode().strip()}}}')
 
@@ -53,39 +59,72 @@ class shell(object):
         if self.connection is None:
             log.warn('Attempting to sleep a closed connection, ignoring')
         log.info('Sending suspend command to remote')
-        stdin, stdout, stderr = self.exec_command('sudo -S pm-suspend')
-        stdin.write(self.SERVER_PW + '\n')
+        stdin, stdout, stderr = self.exec_command('mc_user', 'sudo -S pm-suspend')
+        stdin.write(os.getenv('MC_USER_PASSWORD') + '\n')
         stdin.flush()
         self.connection = None
         log.info('Remote suspended')
   
+    def start_server(self, game_type):
+        if game_type == 'minecraft':
+            self.current_game_type = 'minecraft'
+            self.start_minecraft_process()
+        elif game_type == 'palworld':
+            self.current_game_type = 'palworld'
+            self.start_palworld_process()
+
+    def stop_server(self):
+        if self.current_game_type == 'minecraft':
+            self.stop_minecraft_process()
+        elif self.current_game_type == 'palworld':
+            self.stop_palworld_process()
+    
     def start_minecraft_process(self):
-        self.mcIn, self.mcOut, self.mcErr = self.exec_command('cd paper && java -Xms2G -Xmx15G -jar paper-server.jar --nogui', get_pty=True)              
+        self.stdIn, self.stdOut, self.stdErr = self.exec_command('mc_user', 'cd paper && java -Xms2G -Xmx15G -jar paper-server.jar --nogui', get_pty=True)         
+
+    def start_palworld_process(self):
+        self.stdIn, self.stdOut, self.stdErr = self.exec_command('steam', 'cd Steam/steamapps/common/PalServer && PalServer.sh -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS', get_pty=True)             
 
     def list(self):
         try:
-            with MCRcon(self.SERVER_IP, self.RCON_PW) as mcr:
+            with MCRcon(self.SERVER_IP, os.getenv('MC_RCON_PASSWORD')) as mcr:
                 return mcr.command('list')
         except ConnectionRefusedError:
             return 'Server is offline'
 
     def stop_minecraft_process(self):
-        log.info('Sleeping server')
-        with MCRcon(self.SERVER_IP, self.RCON_PW) as mcr:
+        log.info('Sleeping minecraft server')
+        with MCRcon(self.SERVER_IP, os.getenv('MC_RCON_PASSWORD')) as mcr:
             mcr.command('stop')
-        while not self.mcOut.channel.exit_status_ready():
+        while not self.stdOut.channel.exit_status_ready():
             log.info('Waiting for server to shutdown fully')
             time.sleep(5)
         self.sleep_server()
 
-    def exec_command(self, *args, **kwargs):
+    def stop_palworld_process(self):
+        log.info('Sleeping palworld server')
+        with MCRcon(self.SERVER_IP, os.getenv('PALWORLD_RCON_PASSWORD')) as mcr:
+            mcr.command('stop')
+        while not self.stdOut.channel.exit_status_ready():
+            log.info('Waiting for server to shutdown fully')
+            time.sleep(5)
+        self.sleep_server()
+
+    def exec_command(self, command_user, *args, **kwargs):
         if self.connection is None:
-            self.establish_connection()
+            self.establish_connection(command_user)
         return self.connection.exec_command(*args, **kwargs)
         
     def is_server_online(self):
+        for x in range(9):
+            if self.ping_server():
+                return True
+            time.sleep(1)
+        return False
+    
+    def ping_server(self):
         return os.system(f"ping -c 1 {self.SERVER_IP} > /dev/null") == 0
 
     def clean_line(self):
-        return ansi_escape.sub('', self.mcOut.readline())
+        return ansi_escape.sub('', self.stdOut.readline())
 
