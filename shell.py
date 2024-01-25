@@ -51,7 +51,7 @@ class shell(object):
         MAX_ATTEMPTS = 15
         for i in range(MAX_ATTEMPTS,0,-1):
             log.info(f'Waiting {i} for remote server to come online')
-            if self.is_server_online():
+            if self.ping_server():
                 break
         time.sleep(1)
 
