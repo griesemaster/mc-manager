@@ -6,7 +6,7 @@ import time
 from dotenv import load_dotenv
 from wakeonlan import send_magic_packet
 from mcrcon import MCRcon
-from rcon.source import Client
+from rcon_client import rcon_client
 
 log = logging.getLogger()
 
@@ -105,9 +105,8 @@ class shell(object):
 
     def stop_palworld_process(self):
         log.info('Sleeping palworld server')
-        with Client(self.SERVER_IP, 25565) as client:
-            log.info(client.run('Save'))
-            log.info(client.run('Shutdown', '10', 'Server Closing in 10 seconds'))
+        rcon_client().save()
+        rcon_client().shutdown()
         while not self.stdOut.channel.exit_status_ready():
             log.info('Waiting for server to shutdown fully')
             time.sleep(5)

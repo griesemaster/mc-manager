@@ -15,7 +15,7 @@ def send_command_fallback(command: str):
     con = Console(
         host=os.getenv('SERVER_IP'),
         password=os.getenv('PALWORLD_RCON_PASSWORD'),
-        port=os.getenv('PALWORLD_RCON_PORT'),
+        port=int(os.getenv('PALWORLD_RCON_PORT')),
         timeout=5000
     )
     res = con.command(command)
@@ -27,7 +27,7 @@ def send_command_fallback(command: str):
 
 # ------------------------------------------------------------------------------
 # Synchronous implementation; manually starts and stops a connection with every command
-class Client:
+class rcon_client:
     def __init__(self):
         self.GENERIC_ERROR = "Unable to process your request (server did not respond)"
         log.info("Setting up RCON connection")
@@ -35,11 +35,10 @@ class Client:
 
     def open(self):
         return Console(
-            host=os.get_en,
-            password=self.CONFIG["password"],
-            port=self.CONFIG["port"],
-            timeout=self.CONFIG["timeout_duration"]
-        )
+                host=os.getenv('SERVER_IP'),
+                password=os.getenv('PALWORLD_RCON_PASSWORD'),
+                port=os.getenv('PALWORLD_RCON_PORT'),
+                timeout=5000)
 
     # Admin Commands:
     def info(self):
