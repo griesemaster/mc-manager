@@ -37,7 +37,7 @@ class rcon_client:
         return Console(
                 host=os.getenv('SERVER_IP'),
                 password=os.getenv('PALWORLD_RCON_PASSWORD'),
-                port=os.getenv('PALWORLD_RCON_PORT'),
+                port=int(os.getenv('PALWORLD_RCON_PORT')),
                 timeout=5000)
 
     # Admin Commands:

@@ -58,8 +58,7 @@ class shell(object):
         time.sleep(1)
 
     def sleep_server(self):
-        if self.connection is None:
-            log.warn('Attempting to sleep a closed connection, ignoring')
+        self.connection = None
         log.info('Sending suspend command to remote')
         stdin, stdout, stderr = self.exec_command('mc_user', 'sudo -S pm-suspend')
         stdin.write(os.getenv('MC_USER_PASSWORD') + '\n')
@@ -108,7 +107,8 @@ class shell(object):
     def stop_palworld_process(self):
         log.info('Sleeping palworld server')
         rcon_client().save()
-        rcon_client().shutdown()
+        rcon_client().shutdown(10, 'server_shutdown_10_seconds!')
+        time.sleep(11)
         while not self.stdOut.channel.exit_status_ready():
             log.info('Waiting for server to shutdown fully')
             time.sleep(5)
