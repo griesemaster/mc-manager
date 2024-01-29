@@ -6,6 +6,7 @@ import time
 from dotenv import load_dotenv
 from wakeonlan import send_magic_packet
 from mcrcon import MCRcon
+from rcon.source import Client
 
 log = logging.getLogger()
 
@@ -28,7 +29,7 @@ class shell(object):
 
     def establish_connection(self, command_user):
         # If the server is not online, turn it on
-        if not self.is_server_online():
+        if not self.ping_server():
             self.wake_remote_server()
         self.connection = pm.client.SSHClient()
         self.connection.set_missing_host_key_policy(pm.client.WarningPolicy())
@@ -37,8 +38,8 @@ class shell(object):
             username = os.getenv('MC_USER')
             password = os.getenv('MC_USER_PASSWORD')
         elif command_user == 'steam':
-            username = os.getenv('STEAM_SERVER_USER')
-            password = os.getenv('STEAM_SERVER_USER_PASSWORD')
+            username = os.getenv('STEAM_USER')
+            password = os.getenv('STEAM_USER_PASSWORD')
         else:
             assert 'Invalid user passed, cannot continue'
         self.connection.connect(self.SERVER_IP, username=username, password=password)
@@ -50,6 +51,7 @@ class shell(object):
         send_magic_packet(self.SERVER_PC_MAC)
         MAX_ATTEMPTS = 15
         for i in range(MAX_ATTEMPTS,0,-1):
+            send_magic_packet(self.SERVER_PC_MAC)
             log.info(f'Waiting {i} for remote server to come online')
             if self.ping_server():
                 break
@@ -83,7 +85,7 @@ class shell(object):
         self.stdIn, self.stdOut, self.stdErr = self.exec_command('mc_user', 'cd paper && java -Xms2G -Xmx15G -jar paper-server.jar --nogui', get_pty=True)         
 
     def start_palworld_process(self):
-        self.stdIn, self.stdOut, self.stdErr = self.exec_command('steam', 'cd Steam/steamapps/common/PalServer && PalServer.sh -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS', get_pty=True)             
+        self.stdIn, self.stdOut, self.stdErr = self.exec_command('steam', 'cd Steam/steamapps/common/PalServer &&./PalServer.sh -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS', get_pty=True)
 
     def list(self):
         try:
@@ -103,8 +105,9 @@ class shell(object):
 
     def stop_palworld_process(self):
         log.info('Sleeping palworld server')
-        with MCRcon(self.SERVER_IP, os.getenv('PALWORLD_RCON_PASSWORD')) as mcr:
-            mcr.command('stop')
+        with Client(self.SERVER_IP, 25565) as client:
+            log.info(client.run('Save'))
+            log.info(client.run('Shutdown', '10', 'Server Closing in 10 seconds'))
         while not self.stdOut.channel.exit_status_ready():
             log.info('Waiting for server to shutdown fully')
             time.sleep(5)
@@ -112,7 +115,10 @@ class shell(object):
 
     def exec_command(self, command_user, *args, **kwargs):
         if self.connection is None:
+            log.info("No connection, establishing")
             self.establish_connection(command_user)
+        else:
+            log.info("Connection exists, issuing command")
         return self.connection.exec_command(*args, **kwargs)
         
     def is_server_online(self):

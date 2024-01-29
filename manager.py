@@ -67,6 +67,7 @@ async def start_server(ctx, game_type):
     """Wakes remote and launches minecraft server"""
     await ctx.message.add_reaction(BACKWARDS_SPIRAL)
     assert game_type in VALID_GAME_TYPES, f'Valid game types are: {VALID_GAME_TYPES}'
+    log.info(f"issuing start command for game {game_type}")
     shell().start_server(game_type)
     if shell().is_server_online():
         await ctx.send('Online @'+ get_ip())
