@@ -64,7 +64,7 @@ async def show_online_players(ctx):
 @commands.cooldown(1, 20, commands.BucketType.default)
 @bot.command(name='start', aliases=['wake', 'begin', 'turnon', 'on', 'arouse'])
 async def start_server(ctx, game_type):
-    """Wakes remote and launches minecraft server"""
+    """Wakes remote and launches passed in server type"""
     await ctx.message.add_reaction(BACKWARDS_SPIRAL)
     assert game_type in VALID_GAME_TYPES, f'Valid game types are: {VALID_GAME_TYPES}'
     log.info(f"issuing start command for game {game_type}")

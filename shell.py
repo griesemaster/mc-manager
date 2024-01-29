@@ -68,6 +68,8 @@ class shell(object):
         log.info('Remote suspended')
   
     def start_server(self, game_type):
+        if self.connection is not None:
+            log.info('Ignoring start command, connection already exists')
         if game_type == 'minecraft':
             self.current_game_type = 'minecraft'
             self.start_minecraft_process()
